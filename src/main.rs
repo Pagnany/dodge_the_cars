@@ -37,13 +37,13 @@ fn main() {
         .run();
 }
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 struct Quad;
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 struct Car;
 
-#[derive(Component)]
+#[derive(Component, Debug, PartialEq, Clone, Copy, Reflect)]
 struct CarID(i32);
 
 fn setup(mut commands: Commands) {
@@ -150,8 +150,10 @@ fn move_cars_to_bottom(
     time_step: Res<FixedTime>,
 ) {
     let mut rng = rand::thread_rng();
+    let query_results: Vec<(&Transform, &CarID)> = query.iter().collect();
 
-    for (mut car_transform, _car_id) in query.iter_mut() {
+    for (mut car_transform, car_id) in query.iter_mut() {
+        //println!("{:?}", car_id.0);
         let new_car_position_y =
             car_transform.translation.y - CAR_SPEED * time_step.period.as_secs_f32();
 
