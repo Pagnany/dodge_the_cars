@@ -43,12 +43,15 @@ struct Quad;
 #[derive(Component)]
 struct Car;
 
+#[derive(Component)]
+struct CarID(i32);
+
 fn setup(mut commands: Commands) {
     let mut rng = rand::thread_rng();
 
     commands.spawn(Camera2dBundle::default());
 
-    for _i in 0..5 {
+    for i in 0..5 {
         commands.spawn((
             SpriteBundle {
                 transform: Transform {
@@ -76,6 +79,7 @@ fn setup(mut commands: Commands) {
                 ..default()
             },
             Car,
+            CarID(i),
         ));
     }
 
@@ -141,15 +145,19 @@ fn move_quad(
     );
 }
 
-fn move_cars_to_bottom(mut query: Query<&mut Transform, With<Car>>, time_step: Res<FixedTime>) {
+fn move_cars_to_bottom(
+    mut query: Query<(&mut Transform, &CarID), With<Car>>,
+    time_step: Res<FixedTime>,
+) {
     let mut rng = rand::thread_rng();
 
-    for mut car_transform in query.iter_mut() {
+    for (mut car_transform, _car_id) in query.iter_mut() {
         let new_car_position_y =
             car_transform.translation.y - CAR_SPEED * time_step.period.as_secs_f32();
 
         if new_car_position_y < (((SCREEN_HEIGHT / 2.0) * -1.0) - CAR_HEIGHT).floor() {
-            car_transform.translation.y = ((SCREEN_HEIGHT / 2.0) + CAR_HEIGHT).floor();
+            car_transform.translation.y =
+                ((SCREEN_HEIGHT / 2.0) + CAR_HEIGHT + rng.gen_range(0.0..CAR_HEIGHT * 2.0)).floor();
             car_transform.translation.x =
                 rng.gen_range(((SCREEN_WIDTH / 2.0) * -1.0)..(SCREEN_WIDTH / 2.0));
         } else {
