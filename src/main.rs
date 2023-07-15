@@ -13,6 +13,7 @@ const QUAD_SPEED: f32 = 500.0;
 
 const CAR_WIDTH: f32 = 175.0;
 const CAR_HEIGHT: f32 = 80.0;
+const CAR_SPEED: f32 = 300.0;
 
 const SCREEN_WIDTH: f32 = 650.0;
 const SCREEN_HEIGHT: f32 = 650.0;
@@ -29,10 +30,9 @@ fn main() {
             }),
             ..default()
         }),))
-        //.add_plugins(DefaultPlugins)
         .insert_resource(FixedTime::new_from_secs(1.0 / 60.0))
         .add_systems(Startup, setup)
-        .add_systems(FixedUpdate, move_quad)
+        .add_systems(FixedUpdate, (move_quad, move_cars_to_bottom))
         .add_systems(Update, bevy::window::close_on_esc)
         .run();
 }
@@ -54,7 +54,7 @@ fn setup(mut commands: Commands) {
                 transform: Transform {
                     translation: Vec3::new(
                         rng.gen_range(((SCREEN_WIDTH / 2.0) * -1.0)..(SCREEN_WIDTH / 2.0)),
-                        0.0,
+                        rng.gen_range(0.0..(SCREEN_HEIGHT / 2.0)),
                         0.0,
                     ),
                     scale: Vec3 {
@@ -141,6 +141,30 @@ fn move_quad(
     );
 }
 
-fn is_car_overlapping(mut query: Query<&mut Transform, With<Car>>, car_x: f32, car_y: f32) -> bool {
+fn move_cars_to_bottom(mut query: Query<&mut Transform, With<Car>>, time_step: Res<FixedTime>) {
+    let mut rng = rand::thread_rng();
+
+    for mut car_transform in query.iter_mut() {
+        let new_car_position_y =
+            car_transform.translation.y - CAR_SPEED * time_step.period.as_secs_f32();
+
+        if new_car_position_y < (((SCREEN_HEIGHT / 2.0) * -1.0) - CAR_HEIGHT).floor() {
+            car_transform.translation.y = ((SCREEN_HEIGHT / 2.0) + CAR_HEIGHT).floor();
+            car_transform.translation.x =
+                rng.gen_range(((SCREEN_WIDTH / 2.0) * -1.0)..(SCREEN_WIDTH / 2.0));
+        } else {
+            car_transform.translation.y = new_car_position_y;
+        }
+    }
+}
+
+fn is_car_overlapping(car1_x: f32, car1_y: f32, car2_x: f32, car2_y: f32) -> bool {
+    if car1_x < car2_x + CAR_WIDTH
+        && car1_x + CAR_WIDTH > car2_x
+        && car1_y < car2_y + CAR_HEIGHT
+        && car1_y + CAR_HEIGHT > car2_y
+    {
+        return true;
+    }
     false
 }
