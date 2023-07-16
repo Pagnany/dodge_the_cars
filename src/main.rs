@@ -1,11 +1,14 @@
 //! Shows how to render simple primitive shapes with a single color.
 
 use bevy::{
+    diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
     window::{PresentMode, WindowTheme},
 };
 
 use rand::Rng;
+
+const FRAME_TIME: f32 = 1.0 / 144.0;
 
 const QUAD_WIDTH: f32 = 40.0;
 const QUAD_HEIGHT: f32 = 175.0;
@@ -20,19 +23,25 @@ const SCREEN_HEIGHT: f32 = 650.0;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Dodge the Cars!".into(),
-                resolution: (SCREEN_WIDTH, SCREEN_HEIGHT).into(),
-                present_mode: PresentMode::AutoVsync,
-                window_theme: Some(WindowTheme::Dark),
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Dodge the Cars!".into(),
+                    resolution: (SCREEN_WIDTH, SCREEN_HEIGHT).into(),
+                    present_mode: PresentMode::AutoVsync,
+                    window_theme: Some(WindowTheme::Dark),
+                    ..default()
+                }),
                 ..default()
             }),
-            ..default()
-        }),))
-        .insert_resource(FixedTime::new_from_secs(1.0 / 60.0))
+            FrameTimeDiagnosticsPlugin::default(),
+        ))
+        .insert_resource(FixedTime::new_from_secs(FRAME_TIME))
         .add_systems(Startup, setup)
-        .add_systems(FixedUpdate, (move_quad, move_cars_to_bottom))
+        .add_systems(
+            FixedUpdate,
+            (move_quad, move_cars_to_bottom, text_update_system),
+        )
         .add_systems(Update, bevy::window::close_on_esc)
         .run();
 }
@@ -45,6 +54,9 @@ struct Car;
 
 #[derive(Component, Debug, PartialEq, Clone, Copy, Reflect)]
 struct CarID(i32);
+
+#[derive(Component)]
+struct FpsText;
 
 fn setup(mut commands: Commands) {
     let mut rng = rand::thread_rng();
@@ -101,6 +113,26 @@ fn setup(mut commands: Commands) {
             ..default()
         },
         Quad,
+    ));
+
+    commands.spawn((
+        // Create a TextBundle that has a Text with a list of sections.
+        TextBundle::from_sections([
+            TextSection::new(
+                "FPS: ",
+                TextStyle {
+                    font_size: 20.0,
+                    color: Color::WHITE,
+                    ..Default::default()
+                },
+            ),
+            TextSection::from_style(TextStyle {
+                font_size: 20.0,
+                color: Color::GOLD,
+                ..Default::default()
+            }),
+        ]),
+        FpsText,
     ));
 }
 
@@ -177,4 +209,18 @@ fn is_car_overlapping(car1_x: f32, car1_y: f32, car2_x: f32, car2_y: f32) -> boo
         return true;
     }
     false
+}
+
+fn text_update_system(
+    diagnostics: Res<DiagnosticsStore>,
+    mut query: Query<&mut Text, With<FpsText>>,
+) {
+    for mut text in &mut query {
+        if let Some(fps) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
+            if let Some(value) = fps.smoothed() {
+                // Update the value of the second section
+                text.sections[1].value = format!("{value:.2}");
+            }
+        }
+    }
 }
