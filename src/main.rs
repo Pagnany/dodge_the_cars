@@ -14,8 +14,8 @@ const QUAD_WIDTH: f32 = 40.0;
 const QUAD_HEIGHT: f32 = 175.0;
 const QUAD_SPEED: f32 = 500.0;
 
-const CAR_WIDTH: f32 = 175.0;
-const CAR_HEIGHT: f32 = 80.0;
+const CAR_WIDTH: f32 = 80.0;
+const CAR_HEIGHT: f32 = 175.0;
 const CAR_SPEED: f32 = 300.0;
 
 const SCREEN_WIDTH: f32 = 650.0;
@@ -40,7 +40,7 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(
             FixedUpdate,
-            (move_quad, move_cars_to_bottom, text_update_system),
+            (move_quad, text_update_system, move_cars_to_bottom),
         )
         .add_systems(Update, bevy::window::close_on_esc)
         .run();
@@ -73,8 +73,8 @@ fn setup(mut commands: Commands) {
                         0.0,
                     ),
                     scale: Vec3 {
-                        x: (CAR_HEIGHT),
-                        y: (CAR_WIDTH),
+                        x: (CAR_WIDTH),
+                        y: (CAR_HEIGHT),
                         z: (0.0),
                     },
                     ..default()
@@ -98,7 +98,7 @@ fn setup(mut commands: Commands) {
     commands.spawn((
         SpriteBundle {
             transform: Transform {
-                translation: Vec3::new(0.0, -350.0, 0.0),
+                translation: Vec3::new(0.0, -300.0, 0.0),
                 scale: Vec3 {
                     x: (QUAD_WIDTH),
                     y: (QUAD_HEIGHT),
@@ -182,10 +182,15 @@ fn move_cars_to_bottom(
     time_step: Res<FixedTime>,
 ) {
     let mut rng = rand::thread_rng();
-    let query_results: Vec<(&Transform, &CarID)> = query.iter().collect();
+
+    // Make copy of car transforms and ids to test for collisions
+    let mut transform_for_cars: Vec<(Transform, CarID)> = Vec::new();
+    for (car_transform, car_id) in query.iter() {
+        transform_for_cars.push((car_transform.clone(), car_id.clone()));
+    }
+    //let mut transform_for_cars:Vec<(bevy::prelude::Transform, CarID)> = query.into_iter().map(|(car_transform, car_id)| (car_transform.clone(), car_id.clone())).collect();
 
     for (mut car_transform, car_id) in query.iter_mut() {
-        //println!("{:?}", car_id.0);
         let new_car_position_y =
             car_transform.translation.y - CAR_SPEED * time_step.period.as_secs_f32();
 
@@ -197,18 +202,35 @@ fn move_cars_to_bottom(
         } else {
             car_transform.translation.y = new_car_position_y;
         }
+        for (car_transform2, car_id2) in &transform_for_cars {
+            if car_id.0 == car_id2.0 {
+                continue;
+            }
+            if is_car_overlapping(
+                car_transform.translation.x,
+                car_transform.translation.y,
+                car_transform2.translation.x,
+                car_transform2.translation.y,
+            ) {}
+        }
     }
 }
 
 fn is_car_overlapping(car1_x: f32, car1_y: f32, car2_x: f32, car2_y: f32) -> bool {
-    if car1_x < car2_x + CAR_WIDTH
-        && car1_x + CAR_WIDTH > car2_x
-        && car1_y < car2_y + CAR_HEIGHT
-        && car1_y + CAR_HEIGHT > car2_y
-    {
-        return true;
-    }
-    false
+    let car1_left = car1_x - CAR_WIDTH / 2.0;
+    let car1_right = car1_x + CAR_WIDTH / 2.0;
+    let car1_top = car1_y + CAR_HEIGHT / 2.0;
+    let car1_bottom = car1_y - CAR_HEIGHT / 2.0;
+
+    let car2_left = car2_x - CAR_WIDTH / 2.0;
+    let car2_right = car2_x + CAR_WIDTH / 2.0;
+    let car2_top = car2_y + CAR_HEIGHT / 2.0;
+    let car2_bottom = car2_y - CAR_HEIGHT / 2.0;
+
+    car1_left < car2_right
+        && car1_right > car2_left
+        && car1_top > car2_bottom
+        && car1_bottom < car2_top
 }
 
 fn text_update_system(
