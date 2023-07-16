@@ -16,7 +16,7 @@ const QUAD_SPEED: f32 = 500.0;
 
 const CAR_WIDTH: f32 = 80.0;
 const CAR_HEIGHT: f32 = 175.0;
-const CAR_SPEED: f32 = 300.0;
+const CAR_SPEED: f32 = 600.0;
 
 const SCREEN_WIDTH: f32 = 650.0;
 const SCREEN_HEIGHT: f32 = 650.0;
@@ -68,8 +68,11 @@ fn setup(mut commands: Commands) {
             SpriteBundle {
                 transform: Transform {
                     translation: Vec3::new(
-                        rng.gen_range(((SCREEN_WIDTH / 2.0) * -1.0)..(SCREEN_WIDTH / 2.0)),
-                        rng.gen_range(0.0..(SCREEN_HEIGHT / 2.0)),
+                        rng.gen_range(
+                            ((SCREEN_WIDTH / 2.0) * -1.0 + CAR_WIDTH)
+                                ..(SCREEN_WIDTH / 2.0 - CAR_WIDTH),
+                        ),
+                        SCREEN_HEIGHT + CAR_HEIGHT * rng.gen_range(0.0..5.0),
                         0.0,
                     ),
                     scale: Vec3 {
@@ -188,7 +191,6 @@ fn move_cars_to_bottom(
     for (car_transform, car_id) in query.iter() {
         transform_for_cars.push((car_transform.clone(), car_id.clone()));
     }
-    //let mut transform_for_cars:Vec<(bevy::prelude::Transform, CarID)> = query.into_iter().map(|(car_transform, car_id)| (car_transform.clone(), car_id.clone())).collect();
 
     for (mut car_transform, car_id) in query.iter_mut() {
         let new_car_position_y =
@@ -196,22 +198,38 @@ fn move_cars_to_bottom(
 
         if new_car_position_y < (((SCREEN_HEIGHT / 2.0) * -1.0) - CAR_HEIGHT).floor() {
             car_transform.translation.y =
-                ((SCREEN_HEIGHT / 2.0) + CAR_HEIGHT + rng.gen_range(0.0..CAR_HEIGHT * 2.0)).floor();
-            car_transform.translation.x =
-                rng.gen_range(((SCREEN_WIDTH / 2.0) * -1.0)..(SCREEN_WIDTH / 2.0));
+                ((SCREEN_HEIGHT / 2.0) + CAR_HEIGHT + rng.gen_range(0.0..CAR_HEIGHT)).floor();
+            car_transform.translation.x = rng.gen_range(
+                ((SCREEN_WIDTH / 2.0) * -1.0 + CAR_WIDTH)..(SCREEN_WIDTH / 2.0 - CAR_WIDTH),
+            );
+
+            let mut is_overlapping = true;
+            while is_overlapping {
+                is_overlapping = false;
+                for (car_transform2, car_id2) in &transform_for_cars {
+                    if car_id.0 == car_id2.0 {
+                        continue;
+                    }
+                    if is_car_overlapping(
+                        car_transform.translation.x,
+                        car_transform.translation.y,
+                        car_transform2.translation.x,
+                        car_transform2.translation.y,
+                    ) {
+                        is_overlapping = true;
+                        car_transform.translation.y =
+                            ((SCREEN_HEIGHT / 2.0) + CAR_HEIGHT + rng.gen_range(0.0..CAR_HEIGHT))
+                                .floor();
+                        car_transform.translation.x = rng.gen_range(
+                            ((SCREEN_WIDTH / 2.0) * -1.0 + CAR_WIDTH)
+                                ..(SCREEN_WIDTH / 2.0 - CAR_WIDTH),
+                        );
+                        break;
+                    }
+                }
+            }
         } else {
             car_transform.translation.y = new_car_position_y;
-        }
-        for (car_transform2, car_id2) in &transform_for_cars {
-            if car_id.0 == car_id2.0 {
-                continue;
-            }
-            if is_car_overlapping(
-                car_transform.translation.x,
-                car_transform.translation.y,
-                car_transform2.translation.x,
-                car_transform2.translation.y,
-            ) {}
         }
     }
 }
