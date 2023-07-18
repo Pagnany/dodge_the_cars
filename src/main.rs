@@ -18,6 +18,8 @@ const CAR_WIDTH: f32 = 80.0;
 const CAR_HEIGHT: f32 = 175.0;
 const CAR_SPEED: f32 = 600.0;
 
+const CAR_COUNT: i32 = 5;
+
 const SCREEN_WIDTH: f32 = 650.0;
 const SCREEN_HEIGHT: f32 = 650.0;
 
@@ -63,15 +65,12 @@ fn setup(mut commands: Commands) {
 
     commands.spawn(Camera2dBundle::default());
 
-    for i in 0..5 {
+    for i in 0..CAR_COUNT {
         commands.spawn((
             SpriteBundle {
                 transform: Transform {
                     translation: Vec3::new(
-                        rng.gen_range(
-                            ((SCREEN_WIDTH / 2.0) * -1.0 + CAR_WIDTH)
-                                ..(SCREEN_WIDTH / 2.0 - CAR_WIDTH),
-                        ),
+                        ((SCREEN_WIDTH / 2.0) * -1.0 + (CAR_WIDTH / 2.0)) + SCREEN_WIDTH / CAR_COUNT as f32 * i as f32,
                         SCREEN_HEIGHT + CAR_HEIGHT * rng.gen_range(0.0..5.0),
                         0.0,
                     ),
