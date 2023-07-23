@@ -45,6 +45,7 @@ fn main() {
             (move_quad, text_update_system, move_cars_to_bottom),
         )
         .add_systems(Update, bevy::window::close_on_esc)
+        .add_state::<AppState>()
         .run();
 }
 
@@ -60,6 +61,19 @@ struct CarID(i32);
 #[derive(Component)]
 struct FpsText;
 
+#[derive(States, Debug, Clone, Eq, PartialEq, Hash)]
+enum AppState {
+    MainMenu,
+    InGame,
+    Paused,
+    GameOver,
+}
+impl Default for AppState {
+    fn default() -> Self {
+        AppState::InGame
+    }
+}
+
 fn setup(mut commands: Commands) {
     let mut rng = rand::thread_rng();
 
@@ -70,7 +84,8 @@ fn setup(mut commands: Commands) {
             SpriteBundle {
                 transform: Transform {
                     translation: Vec3::new(
-                        ((SCREEN_WIDTH / 2.0) * -1.0 + (CAR_WIDTH / 2.0)) + SCREEN_WIDTH / CAR_COUNT as f32 * i as f32,
+                        ((SCREEN_WIDTH / 2.0) * -1.0 + (CAR_WIDTH / 2.0))
+                            + SCREEN_WIDTH / CAR_COUNT as f32 * i as f32,
                         SCREEN_HEIGHT + CAR_HEIGHT * rng.gen_range(0.0..5.0),
                         0.0,
                     ),
@@ -139,9 +154,11 @@ fn setup(mut commands: Commands) {
 }
 
 fn move_quad(
+    mut commands: Commands,
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<&mut Transform, With<Quad>>,
     time_step: Res<FixedTime>,
+    app_state: Res<State<AppState>>,
 ) {
     let mut quad_transform = query.single_mut();
     let mut direction_x = 0.0;
@@ -163,6 +180,14 @@ fn move_quad(
         direction_y -= 1.0;
     }
 
+    if keyboard_input.just_pressed(KeyCode::P) {
+        if app_state.get() == &AppState::InGame {
+            commands.insert_resource(NextState(Some(AppState::Paused)));
+        } else if app_state.get() == &AppState::Paused {
+            commands.insert_resource(NextState(Some(AppState::InGame)));
+        }
+    }
+
     let new_quad_position_x =
         quad_transform.translation.x + direction_x * QUAD_SPEED * time_step.period.as_secs_f32();
 
@@ -182,7 +207,13 @@ fn move_quad(
 fn move_cars_to_bottom(
     mut query: Query<(&mut Transform, &CarID), With<Car>>,
     time_step: Res<FixedTime>,
+    app_state: Res<State<AppState>>,
 ) {
+    match app_state.get() {
+        AppState::InGame => {}
+        _ => return,
+    }
+
     let mut rng = rand::thread_rng();
 
     // Make copy of car transforms and ids to test for collisions
@@ -262,4 +293,18 @@ fn text_update_system(
             }
         }
     }
+}
+
+fn is_quad_overlapping_with_car(quad_x: f32, quad_y: f32, car_x: f32, car_y: f32) -> bool {
+    let quad_left = quad_x - QUAD_WIDTH / 2.0;
+    let quad_right = quad_x + QUAD_WIDTH / 2.0;
+    let quad_top = quad_y + QUAD_HEIGHT / 2.0;
+    let quad_bottom = quad_y - QUAD_HEIGHT / 2.0;
+
+    let car_left = car_x - CAR_WIDTH / 2.0;
+    let car_right = car_x + CAR_WIDTH / 2.0;
+    let car_top = car_y + CAR_HEIGHT / 2.0;
+    let car_bottom = car_y - CAR_HEIGHT / 2.0;
+
+    quad_left < car_right && quad_right > car_left && quad_top > car_bottom && quad_bottom < car_top
 }
