@@ -42,7 +42,7 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(
             FixedUpdate,
-            (move_quad, text_update_system, move_cars_to_bottom),
+            (move_quad, text_update_system, move_cars_to_bottom, check_quad_car_overlapp),
         )
         .add_systems(Update, bevy::window::close_on_esc)
         .add_state::<AppState>()
@@ -160,6 +160,11 @@ fn move_quad(
     time_step: Res<FixedTime>,
     app_state: Res<State<AppState>>,
 ) {
+    match app_state.get() {
+        AppState::InGame => {}
+        _ => return,
+    }
+
     let mut quad_transform = query.single_mut();
     let mut direction_x = 0.0;
     let mut direction_y = 0.0;
@@ -260,6 +265,25 @@ fn move_cars_to_bottom(
             }
         } else {
             car_transform.translation.y = new_car_position_y;
+        }
+    }
+}
+
+fn check_quad_car_overlapp (
+    mut commands: Commands,
+    query: Query<&Transform, With<Car>>,
+    quad_query: Query<&Transform, With<Quad>>,
+) {
+    let quad_transform = quad_query.single();
+
+    for car_transform in query.iter() {
+        if is_quad_overlapping_with_car(
+            quad_transform.translation.x,
+            quad_transform.translation.y,
+            car_transform.translation.x,
+            car_transform.translation.y,
+        ) {
+            commands.insert_resource(NextState(Some(AppState::GameOver)));
         }
     }
 }
