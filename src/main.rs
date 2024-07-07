@@ -1,5 +1,3 @@
-//! Shows how to render simple primitive shapes with a single color.
-
 use bevy::{
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
@@ -11,7 +9,7 @@ use rand::Rng;
 const FRAME_TIME: f32 = 1.0 / 144.0;
 
 const QUAD_WIDTH: f32 = 40.0;
-const QUAD_HEIGHT: f32 = 175.0;
+const QUAD_HEIGHT: f32 = 88.0;
 const QUAD_SPEED: f32 = 500.0;
 
 const CAR_WIDTH: f32 = 80.0;
@@ -42,7 +40,12 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(
             FixedUpdate,
-            (move_quad, text_update_system, move_cars_to_bottom, check_quad_car_overlapp),
+            (
+                move_quad,
+                text_update_system,
+                move_cars_to_bottom,
+                check_quad_car_overlapp,
+            ),
         )
         .add_systems(Update, bevy::window::close_on_esc)
         .add_state::<AppState>()
@@ -61,20 +64,16 @@ struct CarID(i32);
 #[derive(Component)]
 struct FpsText;
 
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
 enum AppState {
     MainMenu,
+    #[default]
     InGame,
     Paused,
     GameOver,
 }
-impl Default for AppState {
-    fn default() -> Self {
-        AppState::InGame
-    }
-}
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let mut rng = rand::thread_rng();
 
     commands.spawn(Camera2dBundle::default());
@@ -89,22 +88,10 @@ fn setup(mut commands: Commands) {
                         SCREEN_HEIGHT + CAR_HEIGHT * rng.gen_range(0.0..5.0),
                         0.0,
                     ),
-                    scale: Vec3 {
-                        x: (CAR_WIDTH),
-                        y: (CAR_HEIGHT),
-                        z: (0.0),
-                    },
+                    rotation: Quat::from_rotation_x(std::f32::consts::PI),
                     ..default()
                 },
-                sprite: Sprite {
-                    color: Color::rgba(
-                        rng.gen_range(0.0..1.0),
-                        rng.gen_range(0.0..1.0),
-                        rng.gen_range(0.0..1.0),
-                        1.0,
-                    ),
-                    ..default()
-                },
+                texture: asset_server.load("car.png"),
                 ..default()
             },
             Car,
@@ -116,24 +103,15 @@ fn setup(mut commands: Commands) {
         SpriteBundle {
             transform: Transform {
                 translation: Vec3::new(0.0, -300.0, 0.0),
-                scale: Vec3 {
-                    x: (QUAD_WIDTH),
-                    y: (QUAD_HEIGHT),
-                    z: (0.0),
-                },
                 ..default()
             },
-            sprite: Sprite {
-                color: Color::rgb(0.5, 0.5, 1.0),
-                ..default()
-            },
+            texture: asset_server.load("quad3.png"),
             ..default()
         },
         Quad,
     ));
 
     commands.spawn((
-        // Create a TextBundle that has a Text with a list of sections.
         TextBundle::from_sections([
             TextSection::new(
                 "FPS: ",
@@ -224,7 +202,7 @@ fn move_cars_to_bottom(
     // Make copy of car transforms and ids to test for collisions
     let mut transform_for_cars: Vec<(Transform, CarID)> = Vec::new();
     for (car_transform, car_id) in query.iter() {
-        transform_for_cars.push((car_transform.clone(), car_id.clone()));
+        transform_for_cars.push((*car_transform, *car_id));
     }
 
     for (mut car_transform, car_id) in query.iter_mut() {
@@ -269,7 +247,7 @@ fn move_cars_to_bottom(
     }
 }
 
-fn check_quad_car_overlapp (
+fn check_quad_car_overlapp(
     mut commands: Commands,
     query: Query<&Transform, With<Car>>,
     quad_query: Query<&Transform, With<Quad>>,
